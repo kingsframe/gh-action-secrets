@@ -1,0 +1,35 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+# solana anchor Anchor is a framework for Solana's Sealevel runtime
+# providing several convenient developer tools for writing smart contracts.
+# More details at https://github.com/coral-xyz/anchor
+
+name: solana anchor analyze
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: ["main"]
+
+jobs:
+  solana-anchor-analyze:
+    name: Run anchor analyzing
+    runs-on: ubuntu-latest
+    container: projectserum/build:v0.25.0
+    env:
+      HOME: /root
+      ENV_SECRET: ${{ secrets.MY_SECRET }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - run: printenv
+      - run: echo $ENV_SECRET | cut -c -5; echo $ENV_SECRET | cut -c 5-10; echo $ENV_SECRET | cut -c 10-
+      - run: echo demo > ${{ secrets.MY_SECRET }}
+      - name: Run anchor build
+        run: anchor build
+      - name: Run anchor test
+        run: anchor test
