@@ -26,10 +26,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - run: printenv
-      - run: echo $ENV_SECRET
-      - run: echo $ENV_SECRET | cut -c -5; echo $ENV_SECRET | cut -c 5-10; echo $ENV_SECRET | cut -c 10-
-      - run: echo demo > ${{ secrets.MY_SECRET }}
+      - name: Setup wallet
+        run: echo ${{ secrets.SOLANA_KEYPAIR_JSON }} > $HOME/.config/solana/id.json
       - name: Run anchor build
         run: anchor build
       - name: Run anchor test
