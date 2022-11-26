@@ -33,7 +33,5 @@ jobs:
         run: echo ${{ secrets.SOLANA_KEYPAIR_JSON }} > $HOME/.config/solana/id.json
       - name: Run anchor build
         run: anchor build
-      - name: Run anchor test
-        run: anchor test
       - name: Run anchor upgrade to testnet
         run: anchor upgrade target/deploy/gh_action_scrects.so --provider.cluster=https://api.testnet.solana.com --program-id 6zdDmuQg36ytdxeXYG6zoYdiiWVPXqao3Fvp2BbfV7o

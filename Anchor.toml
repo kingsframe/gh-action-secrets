@@ -7,7 +7,7 @@ gh_action_scrects = "6zdDmuQg36ytdxeXYG6zoYdiiWVPXqao3Fvp2BbfV7o"
 url = "https://anchor.projectserum.com"
 
 [provider]
-cluster = "testnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
