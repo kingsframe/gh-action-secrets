@@ -1,13 +1,13 @@
 [features]
 seeds = false
 [programs.localnet]
-gh_action_scrects = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+gh_action_scrects = "6zdDmuQg36ytdxeXYG6zoYdiiWVPXqao3Fvp2BbfV7o"
 
 [registry]
 url = "https://anchor.projectserum.com"
 
 [provider]
-cluster = "localnet"
+cluster = "testnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
