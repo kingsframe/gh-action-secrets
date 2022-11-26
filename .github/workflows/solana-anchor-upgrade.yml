@@ -25,7 +25,7 @@ jobs:
       HOME: /root
       ENV_SECRET: ${{ secrets.MY_SECRET }}
       PROGRAM_FILEPATH: target/deploy/gh_action_scrects.so
-      CLUSTER: https://api.testnet.solana.com
+      CLUSTER: testnet
       PROGRAM_ID: 6zdDmuQg36ytdxeXYG6zoYdiiWVPXqao3Fvp2BbfV7o
 
     steps:
@@ -38,4 +38,4 @@ jobs:
       - name: Run anchor build
         run: anchor build
       - name: Run anchor upgrade to testnet
-        run: anchor upgrade PROGRAM_FILEPATH --provider.cluster=CLUSTER --program-id PROGRAM_ID
+        run: anchor upgrade PROGRAM_FILEPATH --provider.cluster CLUSTER --program-id PROGRAM_ID
