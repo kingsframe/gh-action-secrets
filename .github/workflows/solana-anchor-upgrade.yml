@@ -38,4 +38,4 @@ jobs:
       - name: Run anchor build
         run: anchor build
       - name: Run anchor upgrade to testnet
-        run: anchor upgrade PROGRAM_FILEPATH --provider.cluster CLUSTER --program-id PROGRAM_ID
+        run: anchor upgrade $PROGRAM_FILEPATH --provider.cluster $CLUSTER --program-id $PROGRAM_ID
