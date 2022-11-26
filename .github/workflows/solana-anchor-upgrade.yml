@@ -1,0 +1,39 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+# solana anchor Anchor is a framework for Solana's Sealevel runtime
+# providing several convenient developer tools for writing smart contracts.
+# More details at https://github.com/coral-xyz/anchor
+# To use this action, you must provide a keypair that has sufficient tokens, 
+# shared object filepath, and program id of the program that is upgrading.
+name: solana anchor program upgrade
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: ["main"]
+
+jobs:
+  solana-anchor-analyze:
+    name: Run anchor analyzing
+    runs-on: ubuntu-latest
+    container: projectserum/build:v0.25.0
+    env:
+      HOME: /root
+      ENV_SECRET: ${{ secrets.MY_SECRET }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Yarn
+        run: yarn
+      - name: Setup wallet
+        run: echo ${{ secrets.SOLANA_KEYPAIR_JSON }} > $HOME/.config/solana/id.json
+      - name: Run anchor build
+        run: anchor build
+      - name: Run anchor test
+        run: anchor test
+      - name: Run anchor upgrade to testnet
+        run: anchor upgrade target/deploy/gh_action_scrects.so --provider.cluster=https://api.testnet.solana.com --program-id 6zdDmuQg36ytdxeXYG6zoYdiiWVPXqao3Fvp2BbfV7o
