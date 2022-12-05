@@ -39,3 +39,18 @@ jobs:
         run: anchor build
       - name: Run anchor upgrade to testnet
         run: anchor upgrade $PROGRAM_FILEPATH --provider.cluster $CLUSTER --program-id $PROGRAM_ID
+# solana deploy
+# create squad
+# add managed program in ui
+# set upgrade authority
+# verify upgrade authority
+# execute transaction
+
+#==============================
+# make changes + build new .so file
+# write buffer
+ solana program write-buffer --buffer-authority 53EBzzsNKEzGBxNMyqxj8iiTQvLLLMKTQs2scxx11fJb /home/eric/dev/solana-anchor-actions/target/deploy/starter_project.so
+# create program upgrade in ui
+# set the buffer authority
+# verify buffer authority in ui
+# send slack message to vote/(prior was to execute upgrade)
