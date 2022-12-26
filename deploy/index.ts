@@ -47,24 +47,28 @@ const BPF_UPGRADE_ID = new anchor.web3.PublicKey("BPFLoaderUpgradeab1e1111111111
 //     execSync(deployCmd);
 // };
 
+
+const deployRandomProgram = (keypair_path: string) => {
+    const deployCmd = `solana program deploy -ud -v --program-id ${keypair_path} demo_program.so`
+    execSync(deployCmd);
+};
+
 // will deploy a buffer for the program manager program
 const writeBuffer = (bufferKeypair: string) => {
-     const writeCmd1 = `pwd`;
-    console.log(execSync(writeCmd1).toString())
+    const writeCmd1 = `pwd`;
+    console.log(execSync(writeCmd1).toString());
     const writeCmd = `solana program write-buffer --buffer ${bufferKeypair} -ud -v ../target/deploy/gh_action_scrects.so`;
-    execSync(writeCmd);
+    execSync(writeCmd,{stdio: 'inherit'});
 };
 
 const setBufferAuthority = (bufferAddress: anchor.web3.PublicKey, authority: anchor.web3.PublicKey) => {
     const authCmd = `solana program set-buffer-authority -ud ${bufferAddress.toBase58()} --new-buffer-authority ${authority.toBase58()}`;
-    execSync(authCmd);
+    execSync(authCmd, {stdio: 'inherit'});
 };
 
 const setProgramAuthority = (programAddress: anchor.web3.PublicKey, authority: anchor.web3.PublicKey) => {
     try {
-        const logsCmd = `solana program show --url localhost --programs`;
-        execSync(logsCmd, {stdio: "inherit"});
-        const authCmd = `solana program set-upgrade-authority --url localhost ${programAddress.toBase58()} --new-upgrade-authority ${authority.toBase58()}`;
+        const authCmd = `solana program set-upgrade-authority -ud ${programAddress.toBase58()} --new-upgrade-authority ${authority.toBase58()}`;
         execSync(authCmd, {stdio: "inherit"});
     } catch (e) {
         console.log(e);
@@ -112,14 +116,15 @@ async function main() {
 
     // the Multisig PDA to use for the test run. address is from url bar, not the vault
     //FIXME: use param
-    const msPDA = new PublicKey("8PKJ6kXTfBcL2vdU6knJRPCzwQ3BA4CfWp22nFUGjayX");
-    const msPDAAccount= await squads.getMultisig(msPDA);
+    const msPDA = new PublicKey("EdTg1h1qFKUwroqtrojn7gwmGUckpyvFgQ4WqEPPuc2n");
+//    https://devnet.squads.so/vault/assets/EdTg1h1qFKUwroqtrojn7gwmGUckpyvFgQ4WqEPPuc2n
+    const msPDAAccount = await squads.getMultisig(msPDA);
     const [pmPDA] = getProgramManagerPDA(msPDA, squads.programManagerProgramId);
 
     const member2 = anchor.web3.Keypair.generate();
     const programManagerPDA = getProgramManagerPDA(msPDA, squads.programManagerProgramId);
     const nextProgramIndex = await squads.getNextProgramIndex(programManagerPDA[0]);
-    const [vaultPDA] = await getAuthorityPDA(msPDA, new anchor.BN(1, 10), squads.multisigProgramId);
+    const [vaultPDA] = getAuthorityPDA(msPDA, new anchor.BN(1, 10), squads.multisigProgramId);
 
     // create a temp keypair to use
     const bufferKeypair = anchor.web3.Keypair.generate();
@@ -136,7 +141,7 @@ async function main() {
     const parsedBufferAccount = await squads.connection.getParsedAccountInfo(bufferKeypair.publicKey);
 
     if (!parsedBufferAccount || !parsedBufferAccount.value) {
-        console.log("SHOULDNT BE NULL")
+        console.log("SHOULDNT BE NULL");
         return;
     }
 
@@ -144,18 +149,27 @@ async function main() {
     expect(parsedBufferData.type).to.equal("buffer");
     expect(parsedBufferData.info.authority).to.equal(vaultPDA.toBase58());
 
+
+    // make keypair for deploying test program
+    // this should not be used in prod, substitute for real program instead
+    const dummyProgramKeypair= anchor.web3.Keypair.generate();
+    fs.writeFileSync("./program_test_keypair.json", `[${dummyProgramKeypair.secretKey.toString()}]`);
+
+    // deploy/write the dummy program using existing keypair
+    deployRandomProgram("./program_test_keypair.json");
+
     // set the program authority
-    setProgramAuthority(DEFAULT_PROGRAM_MANAGER_PROGRAM_ID, vaultPDA);
+    setProgramAuthority(dummyProgramKeypair.publicKey, vaultPDA);
 
     // add the program
     const nameString = "The program manager program, itself";
-    const mpState = await squads.createManagedProgram(msPDA, DEFAULT_PROGRAM_MANAGER_PROGRAM_ID, nameString);
+    const mpState = await squads.createManagedProgram(msPDA, dummyProgramKeypair.publicKey, nameString);
     expect(mpState.name).to.equal(nameString);
     expect(mpState.managedProgramIndex).to.equal(nextProgramIndex);
 
     // create the upgrade
 
-    const testUpgradeName = "Upgrade #1";
+    const testUpgradeName = "Upgrade #1 -dec24";
     const upgradeState = await squads.createProgramUpgrade(msPDA, mpState.publicKey, bufferKeypair.publicKey, squads.wallet.publicKey, vaultPDA, testUpgradeName);
 
     // verify the upgrade account was created, and that the buffers match as well in the ix
@@ -263,4 +277,4 @@ async function main() {
     expect(puState.upgradedOn.toNumber()).to.be.greaterThan(0);
 }
 
-main()
+main();
