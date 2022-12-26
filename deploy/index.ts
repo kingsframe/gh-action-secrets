@@ -7,8 +7,6 @@ import {PublicKey} from "@solana/web3.js";
 import Squads, {getAuthorityPDA, getIxPDA, getProgramManagerPDA,} from "@sqds/sdk";
 import BN from "bn.js";
 
-const BPF_UPGRADE_ID = new anchor.web3.PublicKey("BPFLoaderUpgradeab1e11111111111111111111111");
-
 // will deploy a buffer for the program manager program
 function setBufferAuthority(bufferAddress: anchor.web3.PublicKey, authority: anchor.web3.PublicKey) {
     const authCmd = `solana program set-buffer-authority -ud ${bufferAddress.toBase58()} --new-buffer-authority ${authority.toBase58()}`;
@@ -49,10 +47,11 @@ async function upgradeContract(programIdToUpgrade: PublicKey,
     const bufferKeypair = anchor.web3.Keypair.generate();
 
     // write the temp buffer keypair to file
-    fs.writeFileSync("./buffer_test_keypair.json", `[${bufferKeypair.secretKey.toString()}]`);
+    const tmpKeypairPath = "./buffer_test_keypair.json";
+    fs.writeFileSync(tmpKeypairPath, `[${bufferKeypair.secretKey.toString()}]`);
 
-    // deploy/write the buffer
-    const writeCmd = `solana program write-buffer --buffer ${"./buffer_test_keypair.json"} -ud -v ${solanaBinaryPath}`;
+    // deploy/write the buffer, needs keypair for new buffer, else will error
+    const writeCmd = `solana program write-buffer --buffer ${tmpKeypairPath} -ud -v ${solanaBinaryPath}`;
     execSync(writeCmd, {stdio: 'inherit'});
 
     // set the buffer authority to the vault
@@ -101,8 +100,11 @@ function deployDummyProgram(msPDA: PublicKey): PublicKey {
     // this should not be used in prod, substitute for real program instead
     const dummyProgramKeypair = anchor.web3.Keypair.generate();
 
-    // deploy/write the dummy program using existing keypair
-    const deployCmd = `solana program deploy -ud -v --program-id ${dummyProgramKeypair.publicKey} demo_program.so`;
+    // write the temp buffer keypair to file
+    const temp_path = "./demo_program_keypair.json";
+    fs.writeFileSync(temp_path, `[${dummyProgramKeypair.secretKey.toString()}]`);
+    // deploy/write the dummy program using keypair (required for initial deploy)
+    const deployCmd = `solana program deploy -ud --program-id ${temp_path} -v demo_program.so`;
     execSync(deployCmd);
 
     // set the program authority
@@ -110,7 +112,7 @@ function deployDummyProgram(msPDA: PublicKey): PublicKey {
         commitmentOrConfig: provider.connection.commitment,
     }).multisigProgramId);
     setProgramAuthority(dummyProgramKeypair.publicKey, vaultPDA);
-
+    console.log('Deployed demo, program id = ', dummyProgramKeypair.publicKey.toBase58());
     return dummyProgramKeypair.publicKey;
 }
 
