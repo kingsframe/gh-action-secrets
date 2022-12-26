@@ -10,12 +10,12 @@ import BN from "bn.js";
 const BPF_UPGRADE_ID = new anchor.web3.PublicKey("BPFLoaderUpgradeab1e11111111111111111111111");
 
 // will deploy a buffer for the program manager program
-const setBufferAuthority = (bufferAddress: anchor.web3.PublicKey, authority: anchor.web3.PublicKey) => {
+function setBufferAuthority(bufferAddress: anchor.web3.PublicKey, authority: anchor.web3.PublicKey) {
     const authCmd = `solana program set-buffer-authority -ud ${bufferAddress.toBase58()} --new-buffer-authority ${authority.toBase58()}`;
     execSync(authCmd, {stdio: 'inherit'});
-};
+}
 
-const setProgramAuthority = (programAddress: anchor.web3.PublicKey, authority: anchor.web3.PublicKey) => {
+function setProgramAuthority(programAddress: anchor.web3.PublicKey, authority: anchor.web3.PublicKey) {
     try {
         const authCmd = `solana program set-upgrade-authority -ud ${programAddress.toBase58()} --new-upgrade-authority ${authority.toBase58()}`;
         execSync(authCmd, {stdio: "inherit"});
@@ -23,7 +23,7 @@ const setProgramAuthority = (programAddress: anchor.web3.PublicKey, authority: a
         console.log(e);
         throw new Error(e as any);
     }
-};
+}
 
 const provider = anchor.AnchorProvider.env();
 const DEFAULT_MULTISIG_PROGRAM_ID = new PublicKey(
@@ -33,7 +33,11 @@ const DEFAULT_PROGRAM_MANAGER_PROGRAM_ID = new PublicKey(
     "SMPLKTQhrgo22hFCVq2VGX1KAktTWjeizkhrdB1eauK"
 );
 
-async function upgradeContract(upgradeBinaryPath: string, msPDA: PublicKey, upgradeName: string, programIdToUpgrade: PublicKey) {
+async function upgradeContract(programIdToUpgrade: PublicKey,
+                               solanaBinaryPath: string,
+                               msPDA: PublicKey, //not the vault, but the account in the url bar
+                               upgradeDisplayName: string, //name to show on the web ui
+) {
     const squads = Squads.devnet(provider.wallet, {
         commitmentOrConfig: provider.connection.commitment,
     });
@@ -48,7 +52,7 @@ async function upgradeContract(upgradeBinaryPath: string, msPDA: PublicKey, upgr
     fs.writeFileSync("./buffer_test_keypair.json", `[${bufferKeypair.secretKey.toString()}]`);
 
     // deploy/write the buffer
-    const writeCmd = `solana program write-buffer --buffer ${"./buffer_test_keypair.json"} -ud -v ${upgradeBinaryPath}`;
+    const writeCmd = `solana program write-buffer --buffer ${"./buffer_test_keypair.json"} -ud -v ${solanaBinaryPath}`;
     execSync(writeCmd, {stdio: 'inherit'});
 
     // set the buffer authority to the vault
@@ -59,7 +63,7 @@ async function upgradeContract(upgradeBinaryPath: string, msPDA: PublicKey, upgr
     const mpState = await squads.createManagedProgram(msPDA, programIdToUpgrade, nameString);
 
     // create the upgrade
-    const upgradeState = await squads.createProgramUpgrade(msPDA, mpState.publicKey, bufferKeypair.publicKey, squads.wallet.publicKey, vaultPDA, upgradeName);
+    const upgradeState = await squads.createProgramUpgrade(msPDA, mpState.publicKey, bufferKeypair.publicKey, squads.wallet.publicKey, vaultPDA, upgradeDisplayName);
 
     // create a new tx for the upgrade
     let txBuilder = await squads.getTransactionBuilder(msPDA, 1);
@@ -112,9 +116,9 @@ function deployDummyProgram(msPDA: PublicKey): PublicKey {
 
 //    https://devnet.squads.so/vault/assets/EdTg1h1qFKUwroqtrojn7gwmGUckpyvFgQ4WqEPPuc2n
 const msPDA = new PublicKey("EdTg1h1qFKUwroqtrojn7gwmGUckpyvFgQ4WqEPPuc2n");
-const testUpgradeName = "Upgrade #1 -dec24";
+const testUpgradeName = "Upgrade #1 -dec25";
 const dummyProgramId = deployDummyProgram(msPDA);
 
 const newBinaryPath = `../target/deploy/gh_action_scrects.so`;
 
-upgradeContract(newBinaryPath, msPDA, testUpgradeName, dummyProgramId);
+upgradeContract(dummyProgramId, newBinaryPath, msPDA, testUpgradeName);
