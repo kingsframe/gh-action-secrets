@@ -3,26 +3,13 @@ import fs from "fs";
 import * as anchor from "@project-serum/anchor";
 
 import {execSync} from "child_process";
-import {ParsedAccountData, PublicKey} from "@solana/web3.js";
+import {PublicKey} from "@solana/web3.js";
 import Squads, {getAuthorityPDA, getIxPDA, getProgramManagerPDA,} from "@sqds/sdk";
 import BN from "bn.js";
 
 const BPF_UPGRADE_ID = new anchor.web3.PublicKey("BPFLoaderUpgradeab1e11111111111111111111111");
 
-
-const deployRandomProgram = (keypair_path: string) => {
-    const deployCmd = `solana program deploy -ud -v --program-id ${keypair_path} demo_program.so`;
-    execSync(deployCmd);
-};
-
 // will deploy a buffer for the program manager program
-const writeBuffer = (bufferKeypair: string) => {
-    const writeCmd1 = `pwd`;
-    console.log(execSync(writeCmd1).toString());
-    const writeCmd = `solana program write-buffer --buffer ${bufferKeypair} -ud -v ../target/deploy/gh_action_scrects.so`;
-    execSync(writeCmd, {stdio: 'inherit'});
-};
-
 const setBufferAuthority = (bufferAddress: anchor.web3.PublicKey, authority: anchor.web3.PublicKey) => {
     const authCmd = `solana program set-buffer-authority -ud ${bufferAddress.toBase58()} --new-buffer-authority ${authority.toBase58()}`;
     execSync(authCmd, {stdio: 'inherit'});
@@ -46,14 +33,12 @@ const DEFAULT_PROGRAM_MANAGER_PROGRAM_ID = new PublicKey(
     "SMPLKTQhrgo22hFCVq2VGX1KAktTWjeizkhrdB1eauK"
 );
 
-async function upgradeContract(msPDA: PublicKey, upgradeName: string, programIdToUpgrade: PublicKey) {
+async function upgradeContract(upgradeBinaryPath: string, msPDA: PublicKey, upgradeName: string, programIdToUpgrade: PublicKey) {
     const squads = Squads.devnet(provider.wallet, {
         commitmentOrConfig: provider.connection.commitment,
     });
 
     const [pmPDA] = getProgramManagerPDA(msPDA, squads.programManagerProgramId);
-    const programManagerPDA = getProgramManagerPDA(msPDA, squads.programManagerProgramId);
-    const nextProgramIndex = await squads.getNextProgramIndex(programManagerPDA[0]);
     const [vaultPDA] = getAuthorityPDA(msPDA, new anchor.BN(1, 10), squads.multisigProgramId);
 
     // create a temp keypair to use
@@ -63,27 +48,15 @@ async function upgradeContract(msPDA: PublicKey, upgradeName: string, programIdT
     fs.writeFileSync("./buffer_test_keypair.json", `[${bufferKeypair.secretKey.toString()}]`);
 
     // deploy/write the buffer
-    writeBuffer("./buffer_test_keypair.json");
+    const writeCmd = `solana program write-buffer --buffer ${"./buffer_test_keypair.json"} -ud -v ${upgradeBinaryPath}`;
+    execSync(writeCmd, {stdio: 'inherit'});
+
     // set the buffer authority to the vault
     setBufferAuthority(bufferKeypair.publicKey, vaultPDA);
-
-    // check that the buffer has proper authority
-    const parsedBufferAccount = await squads.connection.getParsedAccountInfo(bufferKeypair.publicKey);
-
-    if (!parsedBufferAccount || !parsedBufferAccount.value) {
-        console.log("SHOULDNT BE NULL");
-        return;
-    }
-
-    const parsedBufferData = (parsedBufferAccount.value.data as ParsedAccountData).parsed;
-    expect(parsedBufferData.type).to.equal("buffer");
-    expect(parsedBufferData.info.authority).to.equal(vaultPDA.toBase58());
 
     // add the program
     const nameString = "The program manager program, itself";
     const mpState = await squads.createManagedProgram(msPDA, programIdToUpgrade, nameString);
-    expect(mpState.name).to.equal(nameString);
-    expect(mpState.managedProgramIndex).to.equal(nextProgramIndex);
 
     // create the upgrade
     const upgradeState = await squads.createProgramUpgrade(msPDA, mpState.publicKey, bufferKeypair.publicKey, squads.wallet.publicKey, vaultPDA, upgradeName);
@@ -104,7 +77,7 @@ async function upgradeContract(msPDA: PublicKey, upgradeName: string, programIdT
     const [, txPDA] = await txBuilder.executeInstructions();
 
     // get the ix
-    let ixState = await squads.getInstruction(ixPDA);
+    const ixState = await squads.getInstruction(ixPDA);
     expect(ixState.instructionIndex).to.equal(1);
 
     let txState = await squads.getTransaction(txPDA);
@@ -120,14 +93,13 @@ async function upgradeContract(msPDA: PublicKey, upgradeName: string, programIdT
 }
 
 function deployDummyProgram(msPDA: PublicKey): PublicKey {
-
     // make keypair for deploying test program
     // this should not be used in prod, substitute for real program instead
     const dummyProgramKeypair = anchor.web3.Keypair.generate();
-    fs.writeFileSync("./program_test_keypair.json", `[${dummyProgramKeypair.secretKey.toString()}]`);
 
     // deploy/write the dummy program using existing keypair
-    deployRandomProgram("./program_test_keypair.json");
+    const deployCmd = `solana program deploy -ud -v --program-id ${dummyProgramKeypair.publicKey} demo_program.so`;
+    execSync(deployCmd);
 
     // set the program authority
     const [vaultPDA] = getAuthorityPDA(msPDA, new anchor.BN(1, 10), Squads.devnet(provider.wallet, {
@@ -142,4 +114,7 @@ function deployDummyProgram(msPDA: PublicKey): PublicKey {
 const msPDA = new PublicKey("EdTg1h1qFKUwroqtrojn7gwmGUckpyvFgQ4WqEPPuc2n");
 const testUpgradeName = "Upgrade #1 -dec24";
 const dummyProgramId = deployDummyProgram(msPDA);
-upgradeContract(msPDA, testUpgradeName, dummyProgramId);
+
+const newBinaryPath = `../target/deploy/gh_action_scrects.so`;
+
+upgradeContract(newBinaryPath, msPDA, testUpgradeName, dummyProgramId);
